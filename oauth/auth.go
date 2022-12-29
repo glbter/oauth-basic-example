@@ -20,6 +20,15 @@ type Client struct {
 	audience     string
 }
 
+type Auth interface {
+	ValidateUserToken(token string) (dto.CreateUserResp, error)
+	GetTokenWithRefresh(username, password string) (dto.UserTokenResp, error)
+	RefreshUserToken(refresh_token string) (dto.TokenResp, error)
+	CreateUser(credentials dto.ApiCredentials, user dto.CreateUserReq) (dto.CreateUserResp, error)
+	GetToken() (dto.TokenResp, error)
+	Logout(returnTo string) string
+}
+
 func NewClient(domain, clientID, clientSecret string) Client {
 	return Client{
 		domain:       domain,
@@ -88,12 +97,13 @@ func (c Client) CreateUser(credentials dto.ApiCredentials, user dto.CreateUserRe
 func (c Client) GetTokenWithRefresh(username, password string) (dto.UserTokenResp, error) {
 	payload := strings.NewReader(
 		fmt.Sprintf(
-			"audience=%v&grant_type=%v&client_id=%v&client_secret=%v&scope=%v&realm=%v&username=%v&password=%v",
+			"audience=%v&grant_type=%v&client_id=%v&client_secret=%v&scope=%v %v&realm=%v&username=%v&password=%v",
 			c.audience,
 			"http://auth0.com/oauth/grant-type/password-realm",
 			c.clientID,
 			c.clientSecret,
 			"offline_access",
+			"openid",
 			connection,
 			username,
 			password,
@@ -197,4 +207,32 @@ func decodeResponse(req *http.Request, cl *http.Client, body any) error {
 	}
 
 	return nil
+}
+
+func (c Client) ValidateUserToken(token string) (dto.CreateUserResp, error) {
+	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("https://%v/userinfo", c.domain), http.NoBody)
+	if err != nil {
+		return dto.CreateUserResp{}, err
+	}
+
+	req.Header.Add("Authorization", token)
+	req.Header.Add("Content-Type", "application/json")
+
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return dto.CreateUserResp{}, err
+	}
+
+	defer res.Body.Close()
+
+	var r dto.CreateUserResp
+	if err := decodeResponse(req, http.DefaultClient, &r); err != nil {
+		return dto.CreateUserResp{}, err
+	}
+
+	return r, nil
+}
+
+func (c Client) Logout(returnTo string) string {
+	return fmt.Sprintf("https://%v/v2/logout?client_id=%v&returnTo=%v", c.domain, c.clientID, returnTo)
 }
