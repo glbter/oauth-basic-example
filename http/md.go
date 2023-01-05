@@ -15,29 +15,46 @@ import (
 	"github.com/golang-jwt/jwt/v4"
 )
 
-const UserContext = "user"
+const (
+	UserContext     = "user"
+	UserCodeContext = "user-auth-code"
+)
 
 type TokenRefresher struct {
 	// is used for demonstration purpose, can't be used in prod, as it isn't concurent safe
 	refreshTokens map[string]string
 
 	domain string
+	ssoURL string
 
 	authClient oauth.Auth
 }
 
-func NewTokenRefresher(authClient oauth.Auth, domain string) TokenRefresher {
+func NewTokenRefresher(authClient oauth.Auth, domain, ssoURL string) TokenRefresher {
 	return TokenRefresher{
 		refreshTokens: make(map[string]string, 0),
 		authClient:    authClient,
 		domain:        domain,
+		ssoURL:        ssoURL,
 	}
 }
 
 func (t TokenRefresher) RefreshToken(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, ok := codeFromRequest(r)
+		// fmt.Println(r.URL.RequestURI())
+		if ok {
+			// fmt.Println("got code")
+
+			next.ServeHTTP(w, r)
+			return
+		}
+
 		tk, ok := tokenFromRequest(r)
 		if tk == "" && ok {
+			// fmt.Println("redirect")
+			// http.Redirect(w, r, t.ssoURL, http.StatusSeeOther)
+
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -86,6 +103,19 @@ func UserFromContext(ctx context.Context) (dto.CreateUserResp, error) {
 
 	return u, nil
 }
+
+// func ContextWithAuthCode(ctx context.Context, code string) context.Context {
+// 	return context.WithValue(ctx, UserCodeContext, code)
+// }
+
+// func AuthCodeFromContext(ctx context.Context) (string, error) {
+// 	u, ok := ctx.Value(UserContext).(string)
+// 	if !ok {
+// 		return "", fmt.Errorf("no auth code in context")
+// 	}
+
+// 	return u, nil
+// }
 
 func (t TokenRefresher) AddRefreshToken(userID, token string) {
 	if _, ok := t.refreshTokens[userID]; !ok {
@@ -159,6 +189,14 @@ func tokenFromRequest(r *http.Request) (string, bool) {
 	}
 
 	return splt[1], true
+}
+
+func codeFromRequest(r *http.Request) (string, bool) {
+	if code := r.URL.Query().Get("code"); code != "" {
+		return code, true
+	}
+
+	return "", false
 }
 
 func writeErrorMessage(w http.ResponseWriter, code int, msg string) {

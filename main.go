@@ -12,36 +12,41 @@ const port = 3000
 
 func main() {
 	authClient := oauth.NewClient(domain, clientID, clientSecret)
+	ssoURL, err := oauth.SsoUrl(domain, clientID, "http://localhost:3000/api/authorize")
+	if err != nil {
+		return
+	}
+
 	http.
-		NewHandler(port, authClient, http.NewTokenRefresher(authClient, domain)).
+		NewHandler(port, authClient, http.NewTokenRefresher(authClient, domain, ssoURL)).
 		Run()
 }
 
 func lab4part2() {
-	authClient := oauth.NewClient(domain, clientID, clientSecret)
+	// authClient := oauth.NewClient(domain, clientID, clientSecret)
 
-	tk, err := authClient.GetTokenWithRefresh("john_doe5_hlib@example.com", "auth0-hlib-it-91-pass")
-	if err != nil {
-		fmt.Println(fmt.Errorf("get token: %w", err))
-		return
-	}
+	// tk, err := authClient.GetTokenWithRefresh("john_doe5_hlib@example.com", "auth0-hlib-it-91-pass")
+	// if err != nil {
+	// 	fmt.Println(fmt.Errorf("get token: %w", err))
+	// 	return
+	// }
 
-	fmt.Println(fmt.Sprintf("access token: %v", tk.Token))
-	fmt.Println(fmt.Sprintf("refresh token: %v \n", tk.RefreshToken))
+	// fmt.Println(fmt.Sprintf("access token: %v", tk.Token))
+	// fmt.Println(fmt.Sprintf("refresh token: %v \n", tk.RefreshToken))
 
-	rtk, err := authClient.RefreshUserToken(tk.RefreshToken)
-	if err != nil {
-		fmt.Println(fmt.Errorf("refresh token: %w", err))
-		return
-	}
+	// rtk, err := authClient.RefreshUserToken(tk.RefreshToken)
+	// if err != nil {
+	// 	fmt.Println(fmt.Errorf("refresh token: %w", err))
+	// 	return
+	// }
 
-	fmt.Println(fmt.Sprintf("refreshed access token: %v \n", rtk.Token))
+	// fmt.Println(fmt.Sprintf("refreshed access token: %v \n", rtk.Token))
 
-	refresher := http.NewTokenRefresher(authClient, domain)
-	if _, err := refresher.ValidateToken(tk.Token); err != nil {
-		fmt.Println(fmt.Errorf("validate token: %w", err))
-		return
-	}
+	// refresher := http.NewTokenRefresher(authClient, domain)
+	// if _, err := refresher.ValidateToken(tk.Token); err != nil {
+	// 	fmt.Println(fmt.Errorf("validate token: %w", err))
+	// 	return
+	// }
 
 	// 	user, err := authClient.ValidateUserToken(fmt.Sprintf("%v %v", tk.TokenType, tk.Token))
 	// 	if err != nil {

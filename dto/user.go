@@ -33,3 +33,10 @@ type UserTokenResp struct {
 	TokenType    string `json:"token_type"`
 	RefreshToken string `json:"refresh_token"`
 }
+
+type UserWithIDResp struct {
+	Token        string `json:"access_token"`
+	TokenType    string `json:"token_type"`
+	RefreshToken string `json:"refresh_token"`
+	IDToken      string `json:"id_token"`
+}

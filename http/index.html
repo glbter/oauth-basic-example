@@ -23,9 +23,15 @@
                 <input type="password" name="password" id="password-field" class="login-form-field" placeholder="Password">
                 <input type="submit" value="Login" id="login-form-submit">
             </form>
-        </main>
 
-        <!-- <h6 id="empty-header">   </h6> -->
+            <form id="login-form">
+
+                <a href="https://dev-r1fw6swpk4dcvcyi.us.auth0.com/authorize?client_id=kQpyZEoipqxPz15jIdsuNxjg2p7ghXzx&redirect_uri=http://localhost:3000/api/authorize&response_mode=query&response_type=code&audience=https://dev-r1fw6swpk4dcvcyi.us.auth0.com/api/v2/&scope=offline_access openid" id="login-form-submit">
+                    
+                    Sign In
+                </a>
+            </form>
+        </main>
 
         <main id="main2-holder">
             <h1 id="register-header">Register</h1>
@@ -185,6 +191,45 @@
 
         console.log(token)
 
+        let code 
+        try {
+            code = window.location.href.match(/code=([\w\d]+)/)[1];
+        } catch(e) {}
+       
+        if (code) {
+            console.log("execute with code")
+            axios.get('/api/authorize/code?code='+code, {
+            }).then((response) => {
+                const { username } = response.data;
+
+                console.log(response.data)
+
+                if (username) {
+                    const mainHolder = document.getElementById("main-holder");
+                    const loginHeader = document.getElementById("login-header");
+
+                    const main2Holder = document.getElementById("main2-holder");
+
+                    loginForm.remove();
+                    loginErrorMsg.remove();
+                    loginHeader.remove();
+
+                    main2Holder.remove();
+
+                    // registerForm.remove();
+                    // registerHeader.remove();
+
+
+                    mainHolder.append(`Hello ${username}`);
+                    logoutLink.style.opacity = 1;
+                }
+
+                sessionStorage.setItem('session', JSON.stringify(response.data));
+                window.location.href = "http://localhost:3000/"
+                // location.reload();
+            });
+        }
+
         if (token) {
             axios.get('/', {
                 headers: {
@@ -217,7 +262,6 @@
             });
         }
 
-
         const loginForm = document.getElementById("login-form");
         const loginButton = document.getElementById("login-form-submit");
         const loginErrorMsg = document.getElementById("login-error-msg");
@@ -241,8 +285,12 @@
                 method: 'post',
                 url: '/api/login',
                 data: {
-                    login,
-                    password
+                    login: login,
+                    password: password
+                },              
+                headers: {
+                    // Overwrite Axios's automatically set Content-Type
+                    'Content-Type': 'application/json'
                 }
             }).then((response) => {
                 const { username } =  response.data;

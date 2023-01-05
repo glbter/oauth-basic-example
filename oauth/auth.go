@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/glbter/oauth-basic-lab2/dto"
@@ -25,6 +26,7 @@ type Auth interface {
 	GetTokenWithRefresh(username, password string) (dto.UserTokenResp, error)
 	RefreshUserToken(refresh_token string) (dto.TokenResp, error)
 	CreateUser(credentials dto.ApiCredentials, user dto.CreateUserReq) (dto.CreateUserResp, error)
+	GetTokenWithAuthCode(code string) (dto.UserWithIDResp, error)
 	GetToken() (dto.TokenResp, error)
 	Logout(returnTo string) string
 }
@@ -149,6 +151,32 @@ func (c Client) RefreshUserToken(refresh_token string) (dto.TokenResp, error) {
 	return r, nil
 }
 
+func (c Client) GetTokenWithAuthCode(code string) (dto.UserWithIDResp, error) {
+	payload := strings.NewReader(
+		fmt.Sprintf(
+			"grant_type=%v&client_id=%v&client_secret=%v&code=%v&redirect_uri=%v",
+			"authorization_code",
+			c.clientID,
+			c.clientSecret,
+			code,
+			"http://localhost:3000/",
+		),
+	)
+
+	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("https://%v/oauth/token", c.domain), payload)
+	if err != nil {
+		return dto.UserWithIDResp{}, err
+	}
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+
+	var r dto.UserWithIDResp
+	if err := decodeResponse(req, http.DefaultClient, &r); err != nil {
+		return dto.UserWithIDResp{}, err
+	}
+
+	return r, nil
+}
+
 func (c Client) ChangeUserPassword(credentials dto.ApiCredentials, userId, newPassword string) error {
 	payload := map[string]string{
 		"connection": connection,
@@ -235,4 +263,21 @@ func (c Client) ValidateUserToken(token string) (dto.CreateUserResp, error) {
 
 func (c Client) Logout(returnTo string) string {
 	return fmt.Sprintf("https://%v/v2/logout?client_id=%v&returnTo=%v", c.domain, c.clientID, returnTo)
+}
+
+func SsoUrl(domain, clientID, redirectURI string) (string, error) {
+	u, err := url.Parse(fmt.Sprintf("https://%v/authorize", domain))
+	if err != nil {
+		return "", err
+	}
+
+	query := url.Values{}
+	query.Set("client_id", clientID)
+	query.Set("redirect_uri", redirectURI)
+	query.Set("response_type", "code")
+	query.Set("response_mode", "query")
+
+	u.RawQuery = query.Encode()
+
+	return u.String(), nil
 }
